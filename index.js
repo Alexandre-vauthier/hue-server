@@ -12,6 +12,28 @@ const REDIRECT_URI = process.env.REDIRECT_URI;
 let ACCESS_TOKEN = null;
 
 // ------------------------
+// Conversion hex -> xy Hue
+// ------------------------
+function hexToXY(hex) {
+  const r = parseInt(hex.substr(1, 2), 16) / 255;
+  const g = parseInt(hex.substr(3, 2), 16) / 255;
+  const b = parseInt(hex.substr(5, 2), 16) / 255;
+
+  const red = r > 0.04045 ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+  const green = g > 0.04045 ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+  const blue = b > 0.04045 ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+
+  const X = red * 0.649926 + green * 0.103455 + blue * 0.197109;
+  const Y = red * 0.234327 + green * 0.743075 + blue * 0.022598;
+  const Z = red * 0.000000 + green * 0.053077 + blue * 1.035763;
+
+  const x = X / (X + Y + Z);
+  const y = Y / (X + Y + Z);
+
+  return { x, y };
+}
+
+// ------------------------
 // OAuth Callback
 // ------------------------
 app.get("/hue-callback", async (req, res) => {
@@ -35,7 +57,7 @@ app.get("/hue-callback", async (req, res) => {
     ACCESS_TOKEN = data.access_token;
 
     console.log("Access token récupéré :", ACCESS_TOKEN);
-    res.send("Token reçu ! Tu peux maintenant piloter tes lampes via /hue");
+    res.send("Token reçu ! Tu peux maintenant piloter tes lampes via /set-color");
   } catch (err) {
     console.error(err);
     res.status(500).send("Erreur lors de la récupération du token OAuth");
@@ -43,7 +65,63 @@ app.get("/hue-callback", async (req, res) => {
 });
 
 // ------------------------
-// Endpoint pour piloter les lampes
+// Endpoint simplifié pour changer la couleur de toutes les lampes
+// ------------------------
+app.post("/set-color", async (req, res) => {
+  if (!ACCESS_TOKEN) {
+    return res.status(400).json({ error: "Pas de token OAuth, fais d'abord l'authentification" });
+  }
+
+  const { color } = req.body; // ex: "#FF0000"
+  
+  if (!color) {
+    return res.status(400).json({ error: "Couleur manquante" });
+  }
+
+  try {
+    const xy = hexToXY(color);
+    console.log(`🎨 Changement couleur: ${color} -> xy:`, xy);
+
+    // Récupérer toutes les lumières
+    const lightsRes = await fetch("https://api.meethue.com/clip/v2/resource/light", {
+      headers: { "Authorization": `Bearer ${ACCESS_TOKEN}` }
+    });
+    
+    if (!lightsRes.ok) {
+      throw new Error(`Erreur API Hue: ${lightsRes.status}`);
+    }
+
+    const { data: lights } = await lightsRes.json();
+    console.log(`💡 ${lights.length} lumières trouvées`);
+
+    // Changer toutes les lumières
+    const promises = lights.map(light =>
+      fetch(`https://api.meethue.com/clip/v2/resource/light/${light.id}`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${ACCESS_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          on: { on: true },
+          color: { xy },
+          dynamics: { duration: 100 }
+        })
+      })
+    );
+
+    await Promise.all(promises);
+    console.log("✅ Toutes les lumières changées");
+    
+    res.json({ success: true, lightsChanged: lights.length });
+  } catch (err) {
+    console.error("❌ Erreur:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ------------------------
+// Endpoint manuel (ancien)
 // ------------------------
 app.post("/hue", async (req, res) => {
   if (!ACCESS_TOKEN) return res.status(400).send("Pas de token, fais d'abord OAuth Hue");
