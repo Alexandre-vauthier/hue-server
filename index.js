@@ -4,9 +4,9 @@ import fetch from "node-fetch";
 const app = express();
 app.use(express.json());
 
-const CLIENT_ID = "TON_CLIENT_ID";
-const CLIENT_SECRET = "TON_CLIENT_SECRET";
-const REDIRECT_URI = "https://MON_SERVEUR.onrender.com/hue-callback"; // remplace par ton URL Render
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const REDIRECT_URI = process.env.REDIRECT_URI;
 let ACCESS_TOKEN = null;
 
 app.get("/hue-callback", async (req, res) => {
