@@ -2,6 +2,20 @@ import express from "express";
 import fetch from "node-fetch";
 
 const app = express();
+
+// ⚡ CORS - Autorise les requêtes depuis Base44 (et autres origines)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Répond immédiatement aux requêtes OPTIONS (preflight)
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(express.json());
 
 // ⚡ Variables d'environnement (sécurisées sur Render)
