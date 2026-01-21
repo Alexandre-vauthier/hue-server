@@ -105,7 +105,16 @@ app.post("/set-color", async (req, res) => {
       throw new Error(`Erreur API Hue: ${lightsRes.status}`);
     }
 
-    const { data: lights } = await lightsRes.json();
+    let lightsData;
+    try {
+      lightsData = await lightsRes.json();
+    } catch (jsonError) {
+      const text = await lightsRes.text();
+      console.error('❌ Réponse non-JSON de Hue:', text.substring(0, 200));
+      throw new Error('Token OAuth invalide ou expiré. Refais l\'authentification sur /hue-callback');
+    }
+    
+    const { data: lights } = lightsData;
     console.log(`💡 ${lights.length} lumières trouvées`);
 
     // Changer toutes les lumières
