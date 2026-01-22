@@ -196,7 +196,7 @@ app.get("/debug-token", (req, res) => {
 });
 
 // ------------------------
-// Lancement du serveur
+// Lancement du serveurs
 // ------------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Serveur Hue prêt sur le port ${PORT}`));
