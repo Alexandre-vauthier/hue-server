@@ -24,6 +24,71 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 
 let ACCESS_TOKEN = null;
+let HUE_USERNAME = null; // Nouveau : stocke le username
+
+// ------------------------
+// Étape 1 : Activer le bouton link à distance
+// ------------------------
+app.put("/activate-link", async (req, res) => {
+  if (!ACCESS_TOKEN) {
+    return res.status(400).json({ error: "Pas de token OAuth" });
+  }
+
+  try {
+    const response = await fetch("https://api.meethue.com/route/api/0/config", {
+      method: "PUT",
+      headers: {
+        "Authorization": `Bearer ${ACCESS_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ linkbutton: true })
+    });
+
+    const result = await response.json();
+    console.log("🔘 Link button activé:", result);
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ------------------------
+// Étape 2 : Créer un username
+// ------------------------
+app.post("/create-username", async (req, res) => {
+  if (!ACCESS_TOKEN) {
+    return res.status(400).json({ error: "Pas de token OAuth" });
+  }
+
+  try {
+    const response = await fetch("https://api.meethue.com/route/api", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${ACCESS_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        devicetype: "hue_party_app",
+        generateclientkey: true
+      })
+    });
+
+    const result = await response.json();
+    console.log("👤 Réponse création username:", result);
+
+    if (result[0] && result[0].success) {
+      HUE_USERNAME = result[0].success.username;
+      console.log("✅ Username créé:", HUE_USERNAME);
+      res.json({ success: true, username: HUE_USERNAME });
+    } else {
+      res.json({ success: false, result });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ------------------------
 // Conversion hex -> xy Hue
@@ -94,6 +159,10 @@ app.post("/set-color", async (req, res) => {
     return res.status(400).json({ error: "Pas de token OAuth, fais d'abord l'authentification" });
   }
 
+  if (!HUE_USERNAME) {
+    return res.status(400).json({ error: "Pas de username Hue. Appelle d'abord /activate-link puis /create-username" });
+  }
+
   const { color } = req.body; // ex: "#FF0000"
   
   if (!color) {
@@ -104,9 +173,12 @@ app.post("/set-color", async (req, res) => {
     const xy = hexToXY(color);
     console.log(`🎨 Changement couleur: ${color} -> xy:`, xy);
 
-    // Récupérer toutes les lumières (Remote API endpoint)
-    const lightsRes = await fetch("https://api.meethue.com/route/clip/v2/resource/light", {
-      headers: { "Authorization": `Bearer ${ACCESS_TOKEN}` }
+    // Récupérer toutes les lumières (Remote API endpoint avec username)
+    const lightsRes = await fetch(`https://api.meethue.com/route/clip/v2/resource/light`, {
+      headers: {
+        "Authorization": `Bearer ${ACCESS_TOKEN}`,
+        "hue-application-key": HUE_USERNAME
+      }
     });
     
     if (!lightsRes.ok) {
@@ -130,12 +202,13 @@ app.post("/set-color", async (req, res) => {
     const { data: lights } = lightsData;
     console.log(`💡 ${lights.length} lumières trouvées`);
 
-    // Changer toutes les lumières (Remote API endpoint)
+    // Changer toutes les lumières (Remote API endpoint avec username)
     const promises = lights.map(light =>
       fetch(`https://api.meethue.com/route/clip/v2/resource/light/${light.id}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${ACCESS_TOKEN}`,
+          "hue-application-key": HUE_USERNAME,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -199,6 +272,8 @@ app.get("/debug-token", (req, res) => {
   res.json({
     hasToken: !!ACCESS_TOKEN,
     tokenPreview: ACCESS_TOKEN ? ACCESS_TOKEN.substring(0, 20) + '...' : null,
+    hasUsername: !!HUE_USERNAME,
+    usernamePreview: HUE_USERNAME ? HUE_USERNAME.substring(0, 20) + '...' : null,
     timestamp: new Date().toISOString()
   });
 });
