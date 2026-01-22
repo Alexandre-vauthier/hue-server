@@ -185,6 +185,17 @@ app.get("/", (req, res) => {
 });
 
 // ------------------------
+// Debug : vérifier si le token existe
+// ------------------------
+app.get("/debug-token", (req, res) => {
+  res.json({
+    hasToken: !!ACCESS_TOKEN,
+    tokenPreview: ACCESS_TOKEN ? ACCESS_TOKEN.substring(0, 20) + '...' : null,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ------------------------
 // Lancement du serveur
 // ------------------------
 const PORT = process.env.PORT || 3000;
