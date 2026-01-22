@@ -104,8 +104,8 @@ app.post("/set-color", async (req, res) => {
     const xy = hexToXY(color);
     console.log(`🎨 Changement couleur: ${color} -> xy:`, xy);
 
-    // Récupérer toutes les lumières
-    const lightsRes = await fetch("https://api.meethue.com/clip/v2/resource/light", {
+    // Récupérer toutes les lumières (Remote API endpoint)
+    const lightsRes = await fetch("https://api.meethue.com/route/clip/v2/resource/light", {
       headers: { "Authorization": `Bearer ${ACCESS_TOKEN}` }
     });
     
@@ -130,9 +130,9 @@ app.post("/set-color", async (req, res) => {
     const { data: lights } = lightsData;
     console.log(`💡 ${lights.length} lumières trouvées`);
 
-    // Changer toutes les lumières
+    // Changer toutes les lumières (Remote API endpoint)
     const promises = lights.map(light =>
-      fetch(`https://api.meethue.com/clip/v2/resource/light/${light.id}`, {
+      fetch(`https://api.meethue.com/route/clip/v2/resource/light/${light.id}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${ACCESS_TOKEN}`,
@@ -166,7 +166,7 @@ app.post("/hue", async (req, res) => {
 
   try {
     const response = await fetch(
-      `https://api.meethue.com/clip/v2/resource/light/${lightId}`,
+      `https://api.meethue.com/route/clip/v2/resource/light/${lightId}`,
       {
         method: "PUT",
         headers: {
@@ -192,40 +192,6 @@ app.get("/", (req, res) => {
   res.send("Serveur Hue prêt 🚀");
 });
 
-
-// Ajoute cet endpoint de test dans ton index.js (avant app.listen)
-
-app.get("/test-hue-api", async (req, res) => {
-  if (!ACCESS_TOKEN) {
-    return res.json({ error: "Pas de token" });
-  }
-
-  try {
-    console.log("🧪 TEST: Appel API Hue...");
-    
-    const response = await fetch("https://api.meethue.com/clip/v2/resource/light", {
-      headers: { "Authorization": `Bearer ${ACCESS_TOKEN}` }
-    });
-    
-    const status = response.status;
-    const contentType = response.headers.get('content-type');
-    const rawText = await response.text();
-    
-    console.log("🧪 Status:", status);
-    console.log("🧪 Content-Type:", contentType);
-    console.log("🧪 Réponse (500 chars):", rawText.substring(0, 500));
-    
-    res.json({
-      status,
-      contentType,
-      responsePreview: rawText.substring(0, 500),
-      tokenUsed: ACCESS_TOKEN.substring(0, 10) + "..."
-    });
-  } catch (err) {
-    console.error("🧪 Erreur:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
 // ------------------------
 // Debug : vérifier si le token existe
 // ------------------------
