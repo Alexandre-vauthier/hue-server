@@ -68,9 +68,17 @@ app.get("/hue-callback", async (req, res) => {
     });
 
     const data = await tokenRes.json();
+    console.log("📦 Réponse complète OAuth:", data);
+    
     ACCESS_TOKEN = data.access_token;
 
-    console.log("Access token récupéré :", ACCESS_TOKEN);
+    if (!ACCESS_TOKEN) {
+      console.error("❌ Pas d'access_token dans la réponse!");
+      return res.status(500).send("Erreur: pas de token reçu");
+    }
+
+    console.log("✅ Access token récupéré (longueur:", ACCESS_TOKEN.length, ")");
+    console.log("Token preview:", ACCESS_TOKEN.substring(0, 30) + "...");
     res.send("Token reçu ! Tu peux maintenant piloter tes lampes via /set-color");
   } catch (err) {
     console.error(err);
@@ -196,7 +204,7 @@ app.get("/debug-token", (req, res) => {
 });
 
 // ------------------------
-// Lancement du serveurs
+// Lancement du serveur
 // ------------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Serveur Hue prêt sur le port ${PORT}`));
