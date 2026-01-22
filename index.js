@@ -106,12 +106,17 @@ app.post("/set-color", async (req, res) => {
     }
 
     let lightsData;
+    if (!lightsRes.ok) {
+      const errorText = await lightsRes.text();
+      console.error('❌ Erreur API Hue:', errorText.substring(0, 200));
+      throw new Error('Token OAuth invalide ou expiré. Refais l\'authentification sur /hue-callback');
+    }
+    
     try {
       lightsData = await lightsRes.json();
     } catch (jsonError) {
-      const text = await lightsRes.text();
-      console.error('❌ Réponse non-JSON de Hue:', text.substring(0, 200));
-      throw new Error('Token OAuth invalide ou expiré. Refais l\'authentification sur /hue-callback');
+      console.error('❌ Impossible de parser la réponse JSON');
+      throw new Error('Réponse invalide de l\'API Hue');
     }
     
     const { data: lights } = lightsData;
